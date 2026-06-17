@@ -1,36 +1,60 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Design Book
 
-## Getting Started
+Swipe through thousands of jersey mockups with a teammate. A like from either Ryan or Jackson keeps the design. Curated keepers live in the Library with bulk ZIP download.
 
-First, run the development server:
+## Stack
+
+- Next.js (App Router) on Vercel
+- Supabase Postgres + Realtime
+- Framer Motion swipe UI
+
+## Setup
+
+1. **Environment variables** — copy `.env.example` to `.env.local`:
+
+```bash
+cp .env.example .env.local
+```
+
+Set these from your Supabase project (Settings → API):
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY` (optional; used for import and download if set)
+
+2. **Database** — apply the migration in [`supabase/migrations/`](supabase/migrations/) to your Supabase project, or run locally:
+
+```bash
+npm run db:start   # requires Docker
+npm run db:reset
+```
+
+3. **Import mockups** (one time):
+
+```bash
+npm run import
+```
+
+4. **Run locally**:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000), pick Ryan or Jackson, and start swiping.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Deploy to Vercel
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. Push this repo to GitHub.
+2. Import the project in Vercel.
+3. Add the same env vars in Vercel project settings.
+4. Deploy.
 
-## Learn More
+## Usage
 
-To learn more about Next.js, take a look at the following resources:
+- **Swipe** — shared queue; when one person votes, the card disappears for both (Realtime sync). Arrow keys or buttons: left = archive, right = keep.
+- **Library** — all keepers, filter by who liked them, preview full size, download filtered set as ZIP of original images.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Data
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Mockups are imported from `c7dbeb.Design Versions - O7.csv` (~10,754 unique URLs after deduping). Votes are one-per-mockup; first swipe wins if both people reach the same card at once.
