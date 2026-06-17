@@ -1,9 +1,10 @@
 "use client";
 
-import Image from "next/image";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AppHeader } from "@/components/app-header";
+import { CatalogCard } from "@/components/catalog-card";
+import { readStoredZoom, ZoomDial } from "@/components/zoom-dial";
 import { createBrowserClient } from "@/lib/supabase";
 import type { CatalogMockup } from "@/lib/database.types";
 import { getStoredVoter, type VoterName } from "@/lib/voter";
@@ -26,6 +27,7 @@ export default function CatalogPage() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [lastToggle, setLastToggle] = useState<LastToggle | null>(null);
+  const [zoom, setZoom] = useState(2.5);
 
   const loadStats = useCallback(async () => {
     const { data, error } = await supabase.rpc("get_queue_stats");
@@ -77,6 +79,7 @@ export default function CatalogPage() {
       return;
     }
     setVoter(stored);
+    setZoom(readStoredZoom());
   }, [router]);
 
   // Initial load: pull pages up to the viewer's resume point, then scroll there.
@@ -240,9 +243,10 @@ export default function CatalogPage() {
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
-            <span className="hidden text-xs text-zinc-500 sm:inline">
-              Tap a design to like it
+          <div className="flex flex-wrap items-center gap-3">
+            <ZoomDial zoom={zoom} onZoomChange={setZoom} />
+            <span className="hidden text-xs text-zinc-500 lg:inline">
+              Hover 1s to magnify
             </span>
             <button
               type="button"
@@ -261,73 +265,15 @@ export default function CatalogPage() {
           <p className="text-zinc-500">Loading catalog…</p>
         ) : (
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
-            {mockups.map((mockup) => {
-              const likedByMe =
-                voter === "Ryan"
-                  ? mockup.liked_by_ryan
-                  : mockup.liked_by_jackson;
-              const likedByThem =
-                voter === "Ryan"
-                  ? mockup.liked_by_jackson
-                  : mockup.liked_by_ryan;
-
-              return (
-                <button
-                  key={mockup.id}
-                  id={`m-${mockup.id}`}
-                  type="button"
-                  onClick={() => toggleLike(mockup)}
-                  aria-pressed={likedByMe}
-                  className={`group relative overflow-hidden rounded-lg border bg-zinc-900 text-left transition ${
-                    likedByMe
-                      ? "border-emerald-500 ring-2 ring-emerald-500/50"
-                      : "border-zinc-800 hover:border-emerald-500/60"
-                  }`}
-                >
-                  <div className="relative aspect-[4/3]">
-                    <Image
-                      src={mockup.url}
-                      alt={mockup.filename}
-                      fill
-                      className="object-contain"
-                      sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-                      unoptimized
-                    />
-
-                    {likedByThem && (
-                      <span className="absolute left-2 top-2 rounded-full bg-amber-500/90 px-2 py-0.5 text-[10px] font-semibold text-zinc-950">
-                        ♥ {voter === "Ryan" ? "Jackson" : "Ryan"}
-                      </span>
-                    )}
-
-                    {likedByMe ? (
-                      <span className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500 text-sm font-bold text-zinc-950 shadow">
-                        ✓
-                      </span>
-                    ) : (
-                      <div className="absolute inset-0 flex items-center justify-center opacity-0 transition group-hover:opacity-100">
-                        <span className="rounded-full bg-emerald-500 px-4 py-1.5 text-sm font-semibold text-zinc-950 shadow-lg">
-                          Keep
-                        </span>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex items-center justify-between gap-2 border-t border-zinc-800 px-2 py-1">
-                    <span className="truncate text-[10px] text-zinc-400">
-                      {[mockup.lot_id, mockup.design_id]
-                        .filter(Boolean)
-                        .join(" · ") || mockup.filename}
-                    </span>
-                    {mockup.version ? (
-                      <span className="shrink-0 text-[10px] font-medium text-zinc-500">
-                        V{mockup.version}
-                      </span>
-                    ) : null}
-                  </div>
-                </button>
-              );
-            })}
+            {mockups.map((mockup) => (
+              <CatalogCard
+                key={mockup.id}
+                mockup={mockup}
+                voter={voter!}
+                zoom={zoom}
+                onToggleLike={() => toggleLike(mockup)}
+              />
+            ))}
           </div>
         )}
 

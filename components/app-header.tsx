@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { HeaderPresence } from "@/components/header-presence";
 
 export function AppHeader({
   active,
@@ -15,7 +16,9 @@ export function AppHeader({
       <Link href="/" className="text-sm font-semibold tracking-wide text-zinc-100">
         Design Book
       </Link>
-      <nav className="flex gap-2 text-sm">
+      <nav className="flex items-center gap-3 text-sm">
+        <HeaderPresence />
+        <div className="flex gap-2">
         {links.map((link) => (
           <Link
             key={link.key}
@@ -29,6 +32,7 @@ export function AppHeader({
             {link.label}
           </Link>
         ))}
+        </div>
       </nav>
     </header>
   );
