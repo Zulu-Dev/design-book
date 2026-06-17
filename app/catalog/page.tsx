@@ -1,14 +1,18 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AppHeader } from "@/components/app-header";
 import { CatalogCard } from "@/components/catalog-card";
+import { CatalogSkeleton } from "@/components/catalog-skeleton";
+import { FloatingLibraryButton } from "@/components/floating-library-button";
 import { ScrollProgress } from "@/components/scroll-progress";
 import { readStoredZoom, ZoomDial } from "@/components/zoom-dial";
 import { useCatalogScrollProgress } from "@/hooks/use-catalog-scroll-progress";
 import { createBrowserClient } from "@/lib/supabase";
 import type { CatalogMockup } from "@/lib/database.types";
+import type { ZoomLevel } from "@/lib/zoom";
 import { getStoredVoter, type VoterName } from "@/lib/voter";
 
 const PAGE_SIZE = 60;
@@ -26,7 +30,7 @@ export default function CatalogPage() {
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
-  const [zoom, setZoom] = useState(2.5);
+  const [zoom, setZoom] = useState<ZoomLevel>(1.5);
   const scrollPercent = useCatalogScrollProgress(total);
 
   const loadStats = useCallback(async () => {
@@ -224,37 +228,34 @@ export default function CatalogPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-zinc-950 text-zinc-100">
-      <AppHeader active="catalog" />
-
-      <div className="sticky top-0 z-20 border-b border-zinc-800 bg-zinc-950/90 backdrop-blur">
-        <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3">
+      <div className="sticky top-0 z-30 border-b border-zinc-800 bg-zinc-950/95 backdrop-blur">
+        <AppHeader active="catalog" />
+        <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-2.5">
           <div>
-            <h1 className="text-lg font-semibold leading-tight">Catalog</h1>
             <p className="text-xs text-zinc-400">
-              {voter} ·{" "}
-              <a
-                href="/library"
-                className="text-zinc-300 underline-offset-2 hover:text-white hover:underline"
-              >
-                {keeperCount ?? "…"} in library
-              </a>{" "}
-              · {total ?? "…"} designs
+              {voter} · {keeperCount ?? "…"} liked · {total ?? "…"} designs
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
             <ScrollProgress percent={scrollPercent} />
             <ZoomDial zoom={zoom} onZoomChange={setZoom} />
-            <span className="hidden text-xs text-zinc-500 lg:inline">
-              Hover 1s to magnify · tap to like
-            </span>
+            <Link
+              href="/library"
+              className="rounded-full border border-zinc-700 px-3 py-1 text-xs font-medium text-zinc-200 transition hover:border-emerald-500/50 hover:text-white"
+            >
+              Library
+              {keeperCount !== null ? ` (${keeperCount})` : ""}
+            </Link>
           </div>
         </div>
       </div>
 
+      <FloatingLibraryButton count={keeperCount} />
+
       <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-5">
         {loading ? (
-          <p className="text-zinc-500">Loading catalog…</p>
+          <CatalogSkeleton />
         ) : (
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
             {mockups.map((mockup) => (
@@ -269,14 +270,12 @@ export default function CatalogPage() {
           </div>
         )}
 
-        <div ref={loadMoreRef} className="py-8 text-center text-sm text-zinc-500">
-          {loadingMore
-            ? "Loading more…"
-            : hasMore
-              ? "Scroll for more"
-              : mockups.length > 0
-                ? "End of catalog"
-                : null}
+        <div ref={loadMoreRef} className="py-6">
+          {loadingMore && (
+            <div className="mx-auto h-1 max-w-xs overflow-hidden rounded-full bg-zinc-800">
+              <div className="h-full w-1/3 animate-pulse rounded-full bg-emerald-500/60" />
+            </div>
+          )}
         </div>
       </main>
     </div>

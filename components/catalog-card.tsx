@@ -4,14 +4,16 @@ import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { CatalogMockup } from "@/lib/database.types";
+import type { ZoomLevel } from "@/lib/zoom";
 import type { VoterName } from "@/lib/voter";
 
-const HOVER_DELAY_MS = 1000;
+const HOVER_DELAY_MS = 400;
+const LENS_SIZE = 220;
 
 type CatalogCardProps = {
   mockup: CatalogMockup;
   voter: VoterName;
-  zoom: number;
+  zoom: ZoomLevel;
   onToggleLike: () => void;
 };
 
@@ -21,9 +23,18 @@ export function CatalogCard({
   zoom,
   onToggleLike,
 }: CatalogCardProps) {
+  const imageAreaRef = useRef<HTMLDivElement>(null);
   const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [magnify, setMagnify] = useState(false);
+  const [lensActive, setLensActive] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [lens, setLens] = useState({
+    clientX: 0,
+    clientY: 0,
+    bgX: 0,
+    bgY: 0,
+    imgW: 0,
+    imgH: 0,
+  });
 
   const likedByMe =
     voter === "Ryan" ? mockup.liked_by_ryan : mockup.liked_by_jackson;
@@ -44,15 +55,56 @@ export function CatalogCard({
     }
   }
 
-  function handleMouseEnter() {
+  function updateLens(clientX: number, clientY: number) {
+    const area = imageAreaRef.current;
+    if (!area) return;
+    const rect = area.getBoundingClientRect();
+    const x = clientX - rect.left;
+    const y = clientY - rect.top;
+    const imgW = rect.width * zoom;
+    const imgH = rect.height * zoom;
+
+    setLens({
+      clientX,
+      clientY,
+      bgX: -(x * zoom - LENS_SIZE / 2),
+      bgY: -(y * zoom - LENS_SIZE / 2),
+      imgW,
+      imgH,
+    });
+  }
+
+  function handleMouseEnter(e: React.MouseEvent) {
     clearHoverTimer();
-    hoverTimer.current = setTimeout(() => setMagnify(true), HOVER_DELAY_MS);
+    hoverTimer.current = setTimeout(() => {
+      setLensActive(true);
+      updateLens(e.clientX, e.clientY);
+    }, HOVER_DELAY_MS);
+  }
+
+  function handleMouseMove(e: React.MouseEvent) {
+    if (lensActive) updateLens(e.clientX, e.clientY);
   }
 
   function handleMouseLeave() {
     clearHoverTimer();
-    setMagnify(false);
+    setLensActive(false);
   }
+
+  const lensLeft =
+    typeof window !== "undefined"
+      ? Math.min(
+          window.innerWidth - LENS_SIZE - 12,
+          Math.max(12, lens.clientX + 16),
+        )
+      : 12;
+  const lensTop =
+    typeof window !== "undefined"
+      ? Math.min(
+          window.innerHeight - LENS_SIZE - 12,
+          Math.max(12, lens.clientY + 16),
+        )
+      : 12;
 
   return (
     <>
@@ -62,6 +114,7 @@ export function CatalogCard({
         type="button"
         onClick={onToggleLike}
         onMouseEnter={handleMouseEnter}
+        onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
         aria-pressed={likedByMe}
         className={`group relative overflow-hidden rounded-lg border bg-zinc-900 text-left transition ${
@@ -70,7 +123,7 @@ export function CatalogCard({
             : "border-zinc-800 hover:border-emerald-500/60"
         }`}
       >
-        <div className="relative aspect-[4/3]">
+        <div ref={imageAreaRef} className="relative aspect-[4/3]">
           <Image
             src={mockup.url}
             alt={mockup.filename}
@@ -113,33 +166,28 @@ export function CatalogCard({
       </button>
 
       {mounted &&
-        magnify &&
+        lensActive &&
         createPortal(
           <div
-            className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm"
+            className="pointer-events-none fixed z-50 overflow-hidden rounded-xl border border-zinc-600 bg-zinc-950 shadow-2xl ring-1 ring-white/10"
+            style={{
+              left: lensLeft,
+              top: lensTop,
+              width: LENS_SIZE,
+              height: LENS_SIZE,
+            }}
             aria-hidden
           >
             <div
-              className="relative max-h-[85vh] max-w-[90vw]"
               style={{
-                width: `${Math.min(90, 45 * zoom)}vw`,
-                height: `${Math.min(85, 40 * zoom)}vh`,
+                width: lens.imgW,
+                height: lens.imgH,
+                backgroundImage: `url(${mockup.url})`,
+                backgroundSize: `${lens.imgW}px ${lens.imgH}px`,
+                backgroundPosition: `${lens.bgX}px ${lens.bgY}px`,
+                backgroundRepeat: "no-repeat",
               }}
-            >
-              <Image
-                src={mockup.url}
-                alt=""
-                fill
-                className="object-contain"
-                sizes="90vw"
-                unoptimized
-                priority
-              />
-            </div>
-            <p className="absolute bottom-6 text-xs text-zinc-400">
-              {[mockup.lot_id, mockup.design_id].filter(Boolean).join(" · ")}
-              {mockup.version ? ` · V${mockup.version}` : ""} · {zoom.toFixed(1)}×
-            </p>
+            />
           </div>,
           document.body,
         )}

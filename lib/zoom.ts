@@ -1,19 +1,20 @@
 const ZOOM_KEY = "design-book-zoom";
-const MIN = 1.5;
-const MAX = 4;
-const DEFAULT = 2.5;
+export const ZOOM_LEVELS = [1.5, 2] as const;
+export type ZoomLevel = (typeof ZOOM_LEVELS)[number];
+const DEFAULT: ZoomLevel = 1.5;
 
-export function getStoredZoom(): number {
+export function getStoredZoom(): ZoomLevel {
   if (typeof window === "undefined") return DEFAULT;
   const raw = localStorage.getItem(ZOOM_KEY);
   const n = raw ? Number.parseFloat(raw) : DEFAULT;
-  if (Number.isNaN(n)) return DEFAULT;
-  return Math.min(MAX, Math.max(MIN, n));
+  if (n >= 1.75) return 2;
+  return 1.5;
 }
 
-export function setStoredZoom(value: number): void {
-  localStorage.setItem(ZOOM_KEY, String(Math.min(MAX, Math.max(MIN, value))));
+export function setStoredZoom(value: ZoomLevel): void {
+  localStorage.setItem(ZOOM_KEY, String(value));
 }
 
-export const ZOOM_MIN = MIN;
-export const ZOOM_MAX = MAX;
+export function zoomLabel(level: ZoomLevel): string {
+  return level === 2 ? "100%" : "50%";
+}
