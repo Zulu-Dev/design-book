@@ -5,6 +5,11 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AppHeader } from "@/components/app-header";
 import { SwipeCard } from "@/components/swipe-card";
+import {
+  readStoredFilters,
+  SwipeFilters,
+  type LotOption,
+} from "@/components/swipe-filters";
 import { createBrowserClient } from "@/lib/supabase";
 import type { Mockup } from "@/lib/database.types";
 import { getStoredVoter } from "@/lib/voter";
@@ -16,29 +21,35 @@ export default function SwipePage() {
   const supabase = useMemo(() => createBrowserClient(), []);
   const [voter, setVoter] = useState<string | null>(null);
   const [deck, setDeck] = useState<Mockup[]>([]);
+  const [lots, setLots] = useState<LotOption[]>([]);
+  const [lotFilter, setLotFilter] = useState<string | null>(null);
+  const [latestOnly, setLatestOnly] = useState(false);
   const [remaining, setRemaining] = useState<number | null>(null);
   const [keeperCount, setKeeperCount] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [fetchingMore, setFetchingMore] = useState(false);
 
   const loadStats = useCallback(async () => {
-    const [{ count: total }, { count: voted }] = await Promise.all([
-      supabase.from("mockups").select("*", { count: "exact", head: true }),
-      supabase.from("votes").select("*", { count: "exact", head: true }),
-    ]);
+    const { data, error } = await supabase.rpc("get_queue_stats", {
+      lot_filter: lotFilter,
+      latest_only: latestOnly,
+    });
 
-    const { count: kept } = await supabase
-      .from("votes")
-      .select("*", { count: "exact", head: true })
-      .eq("liked", true);
+    if (error) {
+      console.error(error);
+      return;
+    }
 
-    setRemaining((total ?? 0) - (voted ?? 0));
-    setKeeperCount(kept ?? 0);
-  }, [supabase]);
+    const stats = data?.[0];
+    setRemaining(Number(stats?.remaining ?? 0));
+    setKeeperCount(Number(stats?.keepers ?? 0));
+  }, [supabase, lotFilter, latestOnly]);
 
   const fetchBatch = useCallback(async () => {
     const { data, error } = await supabase.rpc("get_undecided_mockups", {
       batch_limit: BATCH_SIZE,
+      lot_filter: lotFilter,
+      latest_only: latestOnly,
     });
 
     if (error) {
@@ -47,7 +58,15 @@ export default function SwipePage() {
     }
 
     return data ?? [];
-  }, [supabase]);
+  }, [supabase, lotFilter, latestOnly]);
+
+  const reloadDeck = useCallback(async () => {
+    setLoading(true);
+    const batch = await fetchBatch();
+    setDeck(batch);
+    await loadStats();
+    setLoading(false);
+  }, [fetchBatch, loadStats]);
 
   useEffect(() => {
     const stored = getStoredVoter();
@@ -55,18 +74,24 @@ export default function SwipePage() {
       router.replace("/");
       return;
     }
+
+    const filters = readStoredFilters();
     setVoter(stored);
+    setLotFilter(filters.lotFilter);
+    setLatestOnly(filters.latestOnly);
+  }, [router]);
+
+  useEffect(() => {
+    if (!voter) return;
 
     async function init() {
-      setLoading(true);
-      const batch = await fetchBatch();
-      setDeck(batch);
-      await loadStats();
-      setLoading(false);
+      const { data: lotRows } = await supabase.rpc("list_lot_ids");
+      setLots(lotRows ?? []);
+      await reloadDeck();
     }
 
-    init();
-  }, [router, fetchBatch, loadStats]);
+    void init();
+  }, [voter, lotFilter, latestOnly, supabase, reloadDeck]);
 
   useEffect(() => {
     if (!voter) return;
@@ -79,7 +104,7 @@ export default function SwipePage() {
         (payload) => {
           const mockupId = payload.new.mockup_id as string;
           setDeck((current) => current.filter((m) => m.id !== mockupId));
-          loadStats();
+          void loadStats();
         },
       )
       .subscribe();
@@ -155,6 +180,14 @@ export default function SwipePage() {
           <p className="text-xs text-zinc-500">← archive · keep →</p>
         </div>
 
+        <SwipeFilters
+          lots={lots}
+          lotFilter={lotFilter}
+          latestOnly={latestOnly}
+          onLotFilterChange={setLotFilter}
+          onLatestOnlyChange={setLatestOnly}
+        />
+
         <div className="relative mx-auto aspect-[3/4] w-full max-w-md flex-1">
           {loading ? (
             <div className="flex h-full items-center justify-center text-zinc-500">
@@ -164,7 +197,7 @@ export default function SwipePage() {
             <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
               <p className="text-xl font-medium">Queue cleared</p>
               <p className="text-sm text-zinc-400">
-                Every mockup has been reviewed. Head to the library for keepers.
+                No mockups match these filters, or everything has been reviewed.
               </p>
               <a
                 href="/library"

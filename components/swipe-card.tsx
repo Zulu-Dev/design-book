@@ -74,9 +74,9 @@ export function SwipeCard({ mockup, onSwipe, isTop }: SwipeCardProps) {
           <p className="truncate text-sm font-medium text-zinc-100">
             {mockup.filename}
           </p>
-          {mockup.design_id && (
+          {(mockup.lot_id || mockup.design_id) && (
             <p className="text-xs text-zinc-400">
-              {mockup.design_id}
+              {[mockup.lot_id, mockup.design_id].filter(Boolean).join(" · ")}
               {mockup.version ? ` · V${mockup.version}` : ""}
             </p>
           )}

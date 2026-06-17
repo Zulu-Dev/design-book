@@ -1,6 +1,7 @@
 export type ParsedMockupUrl = {
   url: string;
   filename: string;
+  lotId: string | null;
   designId: string | null;
   version: number | null;
 };
@@ -21,6 +22,7 @@ export function parseMockupUrl(url: string): ParsedMockupUrl {
     return {
       url: trimmed,
       filename,
+      lotId: designMatch[1],
       designId: designMatch[2],
       version: Number.parseInt(designMatch[3], 10),
     };
@@ -29,6 +31,7 @@ export function parseMockupUrl(url: string): ParsedMockupUrl {
   return {
     url: trimmed,
     filename,
+    lotId: null,
     designId: null,
     version: null,
   };

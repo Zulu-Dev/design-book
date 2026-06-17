@@ -33,6 +33,7 @@ async function main() {
   const rows: Array<{
     url: string;
     filename: string;
+    lot_id: string | null;
     design_id: string | null;
     version: number | null;
     position: number;
@@ -47,6 +48,7 @@ async function main() {
     rows.push({
       url: parsed.url,
       filename: parsed.filename,
+      lot_id: parsed.lotId,
       design_id: parsed.designId,
       version: parsed.version,
       position: rows.length,
