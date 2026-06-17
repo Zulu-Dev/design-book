@@ -8,7 +8,7 @@ export function AppHeader({
 }) {
   const links = [
     { href: "/catalog", label: "Catalog", key: "catalog" as const },
-    { href: "/library", label: "Keepers", key: "library" as const },
+    { href: "/library", label: "Library", key: "library" as const },
   ];
 
   return (

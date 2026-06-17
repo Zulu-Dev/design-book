@@ -27,8 +27,8 @@ export function LandingScreen() {
         </p>
         <h1 className="text-4xl font-semibold tracking-tight">Design Book</h1>
         <p className="mt-3 text-zinc-400">
-          Scroll through jersey mockups together. Tap the ones you love to keep
-          them; everything you scroll past is archived.
+          Scroll through jersey mockups and tap the ones you love. Liked designs
+          go to your shared library for bulk review and download.
         </p>
 
         <div className="mt-10 grid gap-3">
@@ -69,7 +69,7 @@ function LinkRow() {
         </a>
         {" · "}
         <a href="/library" className="text-zinc-300 underline-offset-4 hover:underline">
-          View keepers
+          Open library
         </a>
       </p>
     </div>

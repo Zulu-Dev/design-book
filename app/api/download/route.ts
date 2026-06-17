@@ -41,7 +41,10 @@ async function fetchKeepers(voter: string | null): Promise<KeeperRow[]> {
       const mockup = Array.isArray(row.mockups) ? row.mockups[0] : row.mockups;
       return mockup as KeeperRow | null;
     })
-    .filter((row): row is KeeperRow => Boolean(row?.url));
+    .filter((row): row is KeeperRow => Boolean(row?.url))
+    .filter(
+      (row, index, arr) => arr.findIndex((r) => r.url === row.url) === index,
+    );
 }
 
 async function fetchImageBuffer(url: string): Promise<Buffer> {

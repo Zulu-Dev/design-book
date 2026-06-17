@@ -13,8 +13,6 @@ import { getStoredVoter, type VoterName } from "@/lib/voter";
 
 const PAGE_SIZE = 60;
 
-type LastToggle = { mockupId: string; previousLiked: boolean };
-
 export default function CatalogPage() {
   const router = useRouter();
   const supabase = useMemo(() => createBrowserClient(), []);
@@ -28,7 +26,6 @@ export default function CatalogPage() {
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
-  const [lastToggle, setLastToggle] = useState<LastToggle | null>(null);
   const [zoom, setZoom] = useState(2.5);
   const scrollPercent = useCatalogScrollProgress(total);
 
@@ -222,15 +219,7 @@ export default function CatalogPage() {
     if (!voter) return;
     const likedByMe =
       voter === "Ryan" ? mockup.liked_by_ryan : mockup.liked_by_jackson;
-    setLastToggle({ mockupId: mockup.id, previousLiked: likedByMe });
     void setLike(mockup, !likedByMe);
-  }
-
-  function undoLast() {
-    if (!lastToggle) return;
-    const mockup = mockups.find((m) => m.id === lastToggle.mockupId);
-    if (mockup) void setLike(mockup, lastToggle.previousLiked);
-    setLastToggle(null);
   }
 
   return (
@@ -242,7 +231,14 @@ export default function CatalogPage() {
           <div>
             <h1 className="text-lg font-semibold leading-tight">Catalog</h1>
             <p className="text-xs text-zinc-400">
-              {voter} · {keeperCount ?? "…"} keepers · {total ?? "…"} designs
+              {voter} ·{" "}
+              <a
+                href="/library"
+                className="text-zinc-300 underline-offset-2 hover:text-white hover:underline"
+              >
+                {keeperCount ?? "…"} in library
+              </a>{" "}
+              · {total ?? "…"} designs
             </p>
           </div>
 
@@ -250,16 +246,8 @@ export default function CatalogPage() {
             <ScrollProgress percent={scrollPercent} />
             <ZoomDial zoom={zoom} onZoomChange={setZoom} />
             <span className="hidden text-xs text-zinc-500 lg:inline">
-              Hover 1s to magnify
+              Hover 1s to magnify · tap to like
             </span>
-            <button
-              type="button"
-              onClick={undoLast}
-              disabled={!lastToggle}
-              className="rounded-full border border-zinc-700 px-4 py-1.5 text-sm font-medium text-zinc-200 transition hover:border-zinc-500 hover:text-white disabled:opacity-40"
-            >
-              Undo
-            </button>
           </div>
         </div>
       </div>

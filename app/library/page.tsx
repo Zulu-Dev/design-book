@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AppHeader } from "@/components/app-header";
 import { createBrowserClient } from "@/lib/supabase";
@@ -36,7 +37,6 @@ export default function LibraryPage() {
       return;
     }
 
-    // Dedupe by mockup; a design can be liked by both people.
     const byId = new Map<string, Keeper>();
     for (const row of data ?? []) {
       const mockup = Array.isArray(row.mockups) ? row.mockups[0] : row.mockups;
@@ -101,7 +101,6 @@ export default function LibraryPage() {
     const ids = [...selected];
     setKeepers((prev) => prev.filter((k) => !selected.has(k.id)));
 
-    // Remove the keeper entirely by deleting all like rows for these mockups.
     const { error } = await supabase.from("votes").delete().in("mockup_id", ids);
 
     if (error) {
@@ -129,8 +128,8 @@ export default function LibraryPage() {
       anchor.href = url;
       anchor.download =
         filter === "all"
-          ? "design-book-keepers.zip"
-          : `design-book-keepers-${filter.toLowerCase()}.zip`;
+          ? "design-book-library.zip"
+          : `design-book-library-${filter.toLowerCase()}.zip`;
       anchor.click();
       URL.revokeObjectURL(url);
     } catch (err) {
@@ -158,20 +157,20 @@ export default function LibraryPage() {
     <div className="flex min-h-screen flex-col bg-zinc-950 text-zinc-100">
       <AppHeader active="library" />
 
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6">
-        <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
+      <div className="sticky top-0 z-20 border-b border-zinc-800 bg-zinc-950/90 backdrop-blur">
+        <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3">
           <div>
-            <h1 className="text-2xl font-semibold">Keepers</h1>
-            <p className="text-sm text-zinc-400">
-              {visible.length} keepers · goal ~300
+            <h1 className="text-lg font-semibold leading-tight">Library</h1>
+            <p className="text-xs text-zinc-400">
+              {visible.length} liked designs · goal ~300
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
               onClick={toggleSelectMode}
-              className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+              className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${
                 selectMode
                   ? "bg-zinc-700 text-white"
                   : "border border-zinc-700 text-zinc-200 hover:border-zinc-500"
@@ -181,16 +180,16 @@ export default function LibraryPage() {
             </button>
             <button
               type="button"
-              onClick={downloadZip}
+              onClick={() => void downloadZip()}
               disabled={downloading || visible.length === 0}
-              className="rounded-full bg-zinc-100 px-5 py-2 text-sm font-medium text-zinc-900 disabled:opacity-40"
+              className="rounded-full bg-emerald-500 px-5 py-1.5 text-sm font-semibold text-zinc-950 transition hover:bg-emerald-400 disabled:opacity-40"
             >
               {downloading ? "Preparing ZIP…" : "Download ZIP"}
             </button>
           </div>
         </div>
 
-        <div className="mb-5 flex flex-wrap gap-2">
+        <div className="mx-auto flex w-full max-w-7xl gap-2 px-4 pb-3">
           {(["all", "Ryan", "Jackson"] as const).map((option) => (
             <button
               key={option}
@@ -206,15 +205,23 @@ export default function LibraryPage() {
             </button>
           ))}
         </div>
+      </div>
 
+      <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-5">
         {loading ? (
-          <p className="text-zinc-500">Loading keepers…</p>
+          <p className="text-zinc-500">Loading library…</p>
         ) : visible.length === 0 ? (
-          <p className="text-zinc-500">
-            No keepers yet. Head to the catalog and tap the designs you love.
-          </p>
+          <div className="py-16 text-center">
+            <p className="text-zinc-400">No liked designs yet.</p>
+            <Link
+              href="/catalog"
+              className="mt-3 inline-block text-sm text-emerald-400 underline-offset-4 hover:underline"
+            >
+              Browse the catalog
+            </Link>
+          </div>
         ) : (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
             {visible.map((keeper) => {
               const isSelected = selected.has(keeper.id);
               return (
@@ -234,7 +241,7 @@ export default function LibraryPage() {
                       alt={keeper.filename}
                       fill
                       className="object-contain"
-                      sizes="(max-width: 768px) 50vw, 220px"
+                      sizes="(max-width: 640px) 50vw, 200px"
                       unoptimized
                     />
                     {selectMode && (
@@ -266,10 +273,9 @@ export default function LibraryPage() {
         )}
       </main>
 
-      {/* Bulk-selection action bar */}
       {selectMode && (
         <div className="sticky bottom-0 z-30 border-t border-zinc-800 bg-zinc-950/95 backdrop-blur">
-          <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3">
+          <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3">
             <p className="text-sm text-zinc-300">{selected.size} selected</p>
             <div className="flex items-center gap-2">
               <button
@@ -293,7 +299,7 @@ export default function LibraryPage() {
                 disabled={selected.size === 0 || removing}
                 className="rounded-full bg-rose-500 px-5 py-1.5 text-sm font-medium text-white transition hover:bg-rose-400 disabled:opacity-40"
               >
-                {removing ? "Removing…" : `Remove ${selected.size || ""}`}
+                {removing ? "Removing…" : "Remove selected"}
               </button>
             </div>
           </div>
