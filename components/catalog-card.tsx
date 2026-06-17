@@ -7,8 +7,8 @@ import type { CatalogMockup } from "@/lib/database.types";
 import type { ZoomLevel } from "@/lib/zoom";
 import type { VoterName } from "@/lib/voter";
 
-const HOVER_DELAY_MS = 400;
-const LENS_SIZE = 220;
+const HOVER_DELAY_MS = 2000;
+const LENS_SIZE = 260;
 
 type CatalogCardProps = {
   mockup: CatalogMockup;
@@ -27,6 +27,7 @@ export function CatalogCard({
   const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [lensActive, setLensActive] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [broken, setBroken] = useState(false);
   const [lens, setLens] = useState({
     clientX: 0,
     clientY: 0,
@@ -106,6 +107,9 @@ export function CatalogCard({
         )
       : 12;
 
+  // Skip mockups whose image fails to load (dead Google Storage links).
+  if (broken) return null;
+
   return (
     <>
       <button
@@ -131,6 +135,7 @@ export function CatalogCard({
             className="object-contain"
             sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
             unoptimized
+            onError={() => setBroken(true)}
           />
 
           {likedByThem && (

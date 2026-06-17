@@ -30,7 +30,7 @@ export default function CatalogPage() {
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
-  const [zoom, setZoom] = useState<ZoomLevel>(1.5);
+  const [zoom, setZoom] = useState<ZoomLevel>(2);
   const scrollPercent = useCatalogScrollProgress(total);
 
   const loadStats = useCallback(async () => {
