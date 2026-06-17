@@ -16,7 +16,7 @@ export function LandingScreen() {
 
   function continueAs(voter: VoterName) {
     localStorage.setItem("design-book-voter", voter);
-    router.push("/swipe");
+    router.push("/catalog");
   }
 
   return (
@@ -27,8 +27,8 @@ export function LandingScreen() {
         </p>
         <h1 className="text-4xl font-semibold tracking-tight">Design Book</h1>
         <p className="mt-3 text-zinc-400">
-          Swipe through jersey mockups together. A like from either of you keeps
-          the design.
+          Scroll through jersey mockups together. Tap the ones you love to keep
+          them; everything you scroll past is archived.
         </p>
 
         <div className="mt-10 grid gap-3">

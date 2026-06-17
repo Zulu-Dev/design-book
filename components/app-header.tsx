@@ -3,10 +3,9 @@ import Link from "next/link";
 export function AppHeader({
   active,
 }: {
-  active?: "swipe" | "catalog" | "library";
+  active?: "catalog" | "library";
 }) {
   const links = [
-    { href: "/swipe", label: "Swipe", key: "swipe" as const },
     { href: "/catalog", label: "Catalog", key: "catalog" as const },
     { href: "/library", label: "Keepers", key: "library" as const },
   ];

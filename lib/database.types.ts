@@ -80,15 +80,12 @@ export type Database = {
       get_undecided_mockups: {
         Args: {
           batch_limit?: number;
-          page_offset?: number;
-          latest_only?: boolean;
+          after_position?: number;
         };
         Returns: Database["public"]["Tables"]["mockups"]["Row"][];
       };
       get_queue_stats: {
-        Args: {
-          latest_only?: boolean;
-        };
+        Args: Record<string, never>;
         Returns: { remaining: number; keepers: number }[];
       };
     };
