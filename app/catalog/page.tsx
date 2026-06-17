@@ -4,7 +4,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AppHeader } from "@/components/app-header";
 import { CatalogCard } from "@/components/catalog-card";
+import { ScrollProgress } from "@/components/scroll-progress";
 import { readStoredZoom, ZoomDial } from "@/components/zoom-dial";
+import { useCatalogScrollProgress } from "@/hooks/use-catalog-scroll-progress";
 import { createBrowserClient } from "@/lib/supabase";
 import type { CatalogMockup } from "@/lib/database.types";
 import { getStoredVoter, type VoterName } from "@/lib/voter";
@@ -28,6 +30,7 @@ export default function CatalogPage() {
   const [hasMore, setHasMore] = useState(true);
   const [lastToggle, setLastToggle] = useState<LastToggle | null>(null);
   const [zoom, setZoom] = useState(2.5);
+  const scrollPercent = useCatalogScrollProgress(total);
 
   const loadStats = useCallback(async () => {
     const { data, error } = await supabase.rpc("get_queue_stats");
@@ -244,6 +247,7 @@ export default function CatalogPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
+            <ScrollProgress percent={scrollPercent} />
             <ZoomDial zoom={zoom} onZoomChange={setZoom} />
             <span className="hidden text-xs text-zinc-500 lg:inline">
               Hover 1s to magnify

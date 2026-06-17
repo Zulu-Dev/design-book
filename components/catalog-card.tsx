@@ -58,6 +58,7 @@ export function CatalogCard({
     <>
       <button
         id={`m-${mockup.id}`}
+        data-catalog-position={mockup.position}
         type="button"
         onClick={onToggleLike}
         onMouseEnter={handleMouseEnter}
