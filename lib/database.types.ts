@@ -77,16 +77,20 @@ export type Database = {
     };
     Views: Record<string, never>;
     Functions: {
-      get_undecided_mockups: {
+      get_catalog_mockups: {
         Args: {
           batch_limit?: number;
           after_position?: number;
         };
-        Returns: Database["public"]["Tables"]["mockups"]["Row"][];
+        Returns: CatalogMockup[];
+      };
+      get_resume_position: {
+        Args: { viewer: string };
+        Returns: number;
       };
       get_queue_stats: {
         Args: Record<string, never>;
-        Returns: { remaining: number; keepers: number }[];
+        Returns: { total: number; keepers: number }[];
       };
     };
     Enums: Record<string, never>;
@@ -99,4 +103,9 @@ export type Vote = Database["public"]["Tables"]["votes"]["Row"];
 
 export type MockupWithVote = Mockup & {
   votes: Pick<Vote, "voter" | "liked" | "created_at"> | null;
+};
+
+export type CatalogMockup = Mockup & {
+  liked_by_ryan: boolean;
+  liked_by_jackson: boolean;
 };

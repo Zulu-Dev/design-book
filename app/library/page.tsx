@@ -4,17 +4,19 @@ import Image from "next/image";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AppHeader } from "@/components/app-header";
 import { createBrowserClient } from "@/lib/supabase";
-import type { MockupWithVote } from "@/lib/database.types";
+import type { Mockup } from "@/lib/database.types";
 
 type Filter = "all" | "Ryan" | "Jackson";
+type Voter = "Ryan" | "Jackson";
+type Keeper = Mockup & { voters: Voter[] };
 
 export default function LibraryPage() {
   const supabase = useMemo(() => createBrowserClient(), []);
-  const [keepers, setKeepers] = useState<MockupWithVote[]>([]);
+  const [keepers, setKeepers] = useState<Keeper[]>([]);
   const [filter, setFilter] = useState<Filter>("all");
   const [loading, setLoading] = useState(true);
   const [downloading, setDownloading] = useState(false);
-  const [preview, setPreview] = useState<MockupWithVote | null>(null);
+  const [preview, setPreview] = useState<Keeper | null>(null);
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [removing, setRemoving] = useState(false);
@@ -22,17 +24,11 @@ export default function LibraryPage() {
   const loadKeepers = useCallback(async () => {
     setLoading(true);
 
-    let query = supabase
+    const { data, error } = await supabase
       .from("votes")
       .select("voter, liked, created_at, mockups(*)")
       .eq("liked", true)
       .order("created_at", { ascending: false });
-
-    if (filter !== "all") {
-      query = query.eq("voter", filter);
-    }
-
-    const { data, error } = await query;
 
     if (error) {
       console.error(error);
@@ -40,23 +36,24 @@ export default function LibraryPage() {
       return;
     }
 
-    const rows: MockupWithVote[] = (data ?? [])
-      .filter((row) => row.mockups)
-      .map((row) => {
-        const mockup = Array.isArray(row.mockups) ? row.mockups[0] : row.mockups;
-        return {
-          ...mockup,
-          votes: {
-            voter: row.voter,
-            liked: row.liked,
-            created_at: row.created_at,
-          },
-        };
-      });
+    // Dedupe by mockup; a design can be liked by both people.
+    const byId = new Map<string, Keeper>();
+    for (const row of data ?? []) {
+      const mockup = Array.isArray(row.mockups) ? row.mockups[0] : row.mockups;
+      if (!mockup) continue;
+      const existing = byId.get(mockup.id);
+      if (existing) {
+        if (!existing.voters.includes(row.voter)) {
+          existing.voters.push(row.voter);
+        }
+      } else {
+        byId.set(mockup.id, { ...mockup, voters: [row.voter] });
+      }
+    }
 
-    setKeepers(rows);
+    setKeepers([...byId.values()]);
     setLoading(false);
-  }, [supabase, filter]);
+  }, [supabase]);
 
   useEffect(() => {
     loadKeepers();
@@ -75,6 +72,10 @@ export default function LibraryPage() {
     };
   }, [supabase, loadKeepers]);
 
+  const visible = keepers.filter(
+    (k) => filter === "all" || k.voters.includes(filter),
+  );
+
   function toggleSelectMode() {
     setSelectMode((prev) => !prev);
     setSelected(new Set());
@@ -90,7 +91,7 @@ export default function LibraryPage() {
   }
 
   function selectAll() {
-    setSelected(new Set(keepers.map((k) => k.id)));
+    setSelected(new Set(visible.map((k) => k.id)));
   }
 
   async function removeSelected() {
@@ -100,11 +101,8 @@ export default function LibraryPage() {
     const ids = [...selected];
     setKeepers((prev) => prev.filter((k) => !selected.has(k.id)));
 
-    // Archive (liked = false) so they leave the library and stay out of the queue
-    const { error } = await supabase
-      .from("votes")
-      .update({ liked: false })
-      .in("mockup_id", ids);
+    // Remove the keeper entirely by deleting all like rows for these mockups.
+    const { error } = await supabase.from("votes").delete().in("mockup_id", ids);
 
     if (error) {
       console.error(error);
@@ -143,12 +141,17 @@ export default function LibraryPage() {
     }
   }
 
-  function handleCardClick(mockup: MockupWithVote) {
+  function handleCardClick(keeper: Keeper) {
     if (selectMode) {
-      toggleSelected(mockup.id);
+      toggleSelected(keeper.id);
     } else {
-      setPreview(mockup);
+      setPreview(keeper);
     }
+  }
+
+  function likedLabel(voters: Voter[]) {
+    if (voters.length === 2) return "Ryan & Jackson";
+    return voters[0];
   }
 
   return (
@@ -160,7 +163,7 @@ export default function LibraryPage() {
           <div>
             <h1 className="text-2xl font-semibold">Keepers</h1>
             <p className="text-sm text-zinc-400">
-              {keepers.length} keepers · goal ~300
+              {visible.length} keepers · goal ~300
             </p>
           </div>
 
@@ -179,7 +182,7 @@ export default function LibraryPage() {
             <button
               type="button"
               onClick={downloadZip}
-              disabled={downloading || keepers.length === 0}
+              disabled={downloading || visible.length === 0}
               className="rounded-full bg-zinc-100 px-5 py-2 text-sm font-medium text-zinc-900 disabled:opacity-40"
             >
               {downloading ? "Preparing ZIP…" : "Download ZIP"}
@@ -206,19 +209,19 @@ export default function LibraryPage() {
 
         {loading ? (
           <p className="text-zinc-500">Loading keepers…</p>
-        ) : keepers.length === 0 ? (
+        ) : visible.length === 0 ? (
           <p className="text-zinc-500">
             No keepers yet. Head to the catalog and tap the designs you love.
           </p>
         ) : (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-            {keepers.map((mockup) => {
-              const isSelected = selected.has(mockup.id);
+            {visible.map((keeper) => {
+              const isSelected = selected.has(keeper.id);
               return (
                 <button
-                  key={mockup.id}
+                  key={keeper.id}
                   type="button"
-                  onClick={() => handleCardClick(mockup)}
+                  onClick={() => handleCardClick(keeper)}
                   className={`group relative overflow-hidden rounded-lg border bg-zinc-900 text-left transition ${
                     isSelected
                       ? "border-rose-500 ring-2 ring-rose-500/40"
@@ -227,8 +230,8 @@ export default function LibraryPage() {
                 >
                   <div className="relative aspect-[4/3]">
                     <Image
-                      src={mockup.url}
-                      alt={mockup.filename}
+                      src={keeper.url}
+                      alt={keeper.filename}
                       fill
                       className="object-contain"
                       sizes="(max-width: 768px) 50vw, 220px"
@@ -248,12 +251,12 @@ export default function LibraryPage() {
                   </div>
                   <div className="flex items-center justify-between gap-2 border-t border-zinc-800 px-2 py-1">
                     <span className="truncate text-[10px] text-zinc-400">
-                      {[mockup.lot_id, mockup.design_id]
+                      {[keeper.lot_id, keeper.design_id]
                         .filter(Boolean)
-                        .join(" · ") || mockup.filename}
+                        .join(" · ") || keeper.filename}
                     </span>
                     <span className="shrink-0 text-[10px] font-medium text-emerald-400">
-                      {mockup.votes?.voter}
+                      {likedLabel(keeper.voters)}
                     </span>
                   </div>
                 </button>
@@ -267,9 +270,7 @@ export default function LibraryPage() {
       {selectMode && (
         <div className="sticky bottom-0 z-30 border-t border-zinc-800 bg-zinc-950/95 backdrop-blur">
           <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3">
-            <p className="text-sm text-zinc-300">
-              {selected.size} selected
-            </p>
+            <p className="text-sm text-zinc-300">{selected.size} selected</p>
             <div className="flex items-center gap-2">
               <button
                 type="button"
@@ -329,7 +330,7 @@ export default function LibraryPage() {
                 </p>
               </div>
               <p className="shrink-0 text-sm text-emerald-400">
-                Liked by {preview.votes?.voter}
+                Liked by {likedLabel(preview.voters)}
               </p>
             </div>
             <button
