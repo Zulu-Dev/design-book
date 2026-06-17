@@ -6,10 +6,9 @@ import { useRouter } from "next/navigation";
 import { AppHeader } from "@/components/app-header";
 import { SwipeCard } from "@/components/swipe-card";
 import {
-  readStoredFilters,
-  SwipeFilters,
-  type LotOption,
-} from "@/components/swipe-filters";
+  LatestOnlyToggle,
+  readStoredLatestOnly,
+} from "@/components/latest-only-toggle";
 import { createBrowserClient } from "@/lib/supabase";
 import type { Mockup } from "@/lib/database.types";
 import { getStoredVoter } from "@/lib/voter";
@@ -21,8 +20,6 @@ export default function SwipePage() {
   const supabase = useMemo(() => createBrowserClient(), []);
   const [voter, setVoter] = useState<string | null>(null);
   const [deck, setDeck] = useState<Mockup[]>([]);
-  const [lots, setLots] = useState<LotOption[]>([]);
-  const [lotFilter, setLotFilter] = useState<string | null>(null);
   const [latestOnly, setLatestOnly] = useState(false);
   const [remaining, setRemaining] = useState<number | null>(null);
   const [keeperCount, setKeeperCount] = useState<number | null>(null);
@@ -31,7 +28,6 @@ export default function SwipePage() {
 
   const loadStats = useCallback(async () => {
     const { data, error } = await supabase.rpc("get_queue_stats", {
-      lot_filter: lotFilter,
       latest_only: latestOnly,
     });
 
@@ -41,14 +37,16 @@ export default function SwipePage() {
     }
 
     const stats = data?.[0];
-    setRemaining(Number(stats?.remaining ?? 0));
-    setKeeperCount(Number(stats?.keepers ?? 0));
-  }, [supabase, lotFilter, latestOnly]);
+    if (stats) {
+      setRemaining(Number(stats.remaining));
+      setKeeperCount(Number(stats.keepers));
+    }
+  }, [supabase, latestOnly]);
 
   const fetchBatch = useCallback(async () => {
     const { data, error } = await supabase.rpc("get_undecided_mockups", {
       batch_limit: BATCH_SIZE,
-      lot_filter: lotFilter,
+      page_offset: 0,
       latest_only: latestOnly,
     });
 
@@ -58,7 +56,7 @@ export default function SwipePage() {
     }
 
     return data ?? [];
-  }, [supabase, lotFilter, latestOnly]);
+  }, [supabase, latestOnly]);
 
   const reloadDeck = useCallback(async () => {
     setLoading(true);
@@ -75,29 +73,20 @@ export default function SwipePage() {
       return;
     }
 
-    const filters = readStoredFilters();
     setVoter(stored);
-    setLotFilter(filters.lotFilter);
-    setLatestOnly(filters.latestOnly);
+    setLatestOnly(readStoredLatestOnly());
   }, [router]);
 
   useEffect(() => {
     if (!voter) return;
-
-    async function init() {
-      const { data: lotRows } = await supabase.rpc("list_lot_ids");
-      setLots(lotRows ?? []);
-      await reloadDeck();
-    }
-
-    void init();
-  }, [voter, lotFilter, latestOnly, supabase, reloadDeck]);
+    void reloadDeck();
+  }, [voter, latestOnly, reloadDeck]);
 
   useEffect(() => {
     if (!voter) return;
 
     const channel = supabase
-      .channel("votes-changes")
+      .channel("swipe-votes")
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "votes" },
@@ -120,6 +109,10 @@ export default function SwipePage() {
       if (!current || !voter) return;
 
       setDeck((prev) => prev.slice(1));
+      setRemaining((prev) => (prev === null ? prev : Math.max(0, prev - 1)));
+      if (liked) {
+        setKeeperCount((prev) => (prev === null ? prev : prev + 1));
+      }
 
       const { error } = await supabase.from("votes").insert({
         mockup_id: current.id,
@@ -130,25 +123,23 @@ export default function SwipePage() {
       if (error && error.code !== "23505") {
         console.error(error);
         setDeck((prev) => [current, ...prev]);
+        void loadStats();
         return;
       }
 
-      await loadStats();
+      void loadStats();
 
-      setDeck((prev) => {
-        if (prev.length <= 4 && !fetchingMore) {
-          setFetchingMore(true);
-          void fetchBatch().then((more) => {
-            setDeck((currentDeck) => {
-              const existing = new Set(currentDeck.map((m) => m.id));
-              const fresh = more.filter((m) => !existing.has(m.id));
-              return [...currentDeck, ...fresh];
-            });
-            setFetchingMore(false);
+      if (deck.length <= 5 && !fetchingMore) {
+        setFetchingMore(true);
+        void fetchBatch().then((more) => {
+          setDeck((currentDeck) => {
+            const existing = new Set(currentDeck.map((m) => m.id));
+            const fresh = more.filter((m) => !existing.has(m.id));
+            return [...currentDeck, ...fresh];
           });
-        }
-        return prev;
-      });
+          setFetchingMore(false);
+        });
+      }
     },
     [deck, voter, supabase, loadStats, fetchBatch, fetchingMore],
   );
@@ -180,11 +171,8 @@ export default function SwipePage() {
           <p className="text-xs text-zinc-500">← archive · keep →</p>
         </div>
 
-        <SwipeFilters
-          lots={lots}
-          lotFilter={lotFilter}
+        <LatestOnlyToggle
           latestOnly={latestOnly}
-          onLotFilterChange={setLotFilter}
           onLatestOnlyChange={setLatestOnly}
         />
 
@@ -197,13 +185,13 @@ export default function SwipePage() {
             <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
               <p className="text-xl font-medium">Queue cleared</p>
               <p className="text-sm text-zinc-400">
-                No mockups match these filters, or everything has been reviewed.
+                Everything matching this filter has been reviewed.
               </p>
               <a
-                href="/library"
+                href="/catalog"
                 className="mt-2 rounded-full bg-zinc-100 px-5 py-2 text-sm font-medium text-zinc-900"
               >
-                Open library
+                Browse catalog
               </a>
             </div>
           ) : (

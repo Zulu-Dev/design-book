@@ -62,11 +62,16 @@ export function LandingScreen() {
 
 function LinkRow() {
   return (
-    <p className="mt-8 text-sm text-zinc-500">
-      Already have keepers?{" "}
-      <a href="/library" className="text-zinc-300 underline-offset-4 hover:underline">
-        Open library
-      </a>
-    </p>
+    <div className="mt-8 space-y-2 text-sm text-zinc-500">
+      <p>
+        <a href="/catalog" className="text-zinc-300 underline-offset-4 hover:underline">
+          Browse catalog
+        </a>
+        {" · "}
+        <a href="/library" className="text-zinc-300 underline-offset-4 hover:underline">
+          View keepers
+        </a>
+      </p>
+    </div>
   );
 }
