@@ -142,15 +142,33 @@ export default function LibraryPage() {
 
   function exportLinks() {
     if (visible.length === 0) return;
-    const text = visible.map((k) => k.url).join("\n");
-    const blob = new Blob([text], { type: "text/plain" });
+
+    const escape = (value: string) =>
+      /[",\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
+
+    const header = ["url", "filename", "lot_id", "design_id", "version", "liked_by"];
+    const rows = visible.map((k) =>
+      [
+        k.url,
+        k.filename,
+        k.lot_id ?? "",
+        k.design_id ?? "",
+        k.version != null ? `V${k.version}` : "",
+        likedLabel(k.voters),
+      ]
+        .map((cell) => escape(String(cell)))
+        .join(","),
+    );
+
+    const csv = [header.join(","), ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;
     anchor.download =
       filter === "all"
-        ? "design-book-links.txt"
-        : `design-book-links-${filter.toLowerCase()}.txt`;
+        ? "design-book-links.csv"
+        : `design-book-links-${filter.toLowerCase()}.csv`;
     anchor.click();
     URL.revokeObjectURL(url);
   }
@@ -198,7 +216,7 @@ export default function LibraryPage() {
               disabled={visible.length === 0}
               className="rounded-full border border-zinc-700 px-4 py-1.5 text-sm font-medium text-zinc-200 transition hover:border-zinc-500 disabled:opacity-40"
             >
-              Export links
+              Export CSV
             </button>
             <button
               type="button"
