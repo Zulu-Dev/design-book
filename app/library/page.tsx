@@ -143,24 +143,7 @@ export default function LibraryPage() {
   function exportLinks() {
     if (visible.length === 0) return;
 
-    const escape = (value: string) =>
-      /[",\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
-
-    const header = ["url", "filename", "lot_id", "design_id", "version", "liked_by"];
-    const rows = visible.map((k) =>
-      [
-        k.url,
-        k.filename,
-        k.lot_id ?? "",
-        k.design_id ?? "",
-        k.version != null ? `V${k.version}` : "",
-        likedLabel(k.voters),
-      ]
-        .map((cell) => escape(String(cell)))
-        .join(","),
-    );
-
-    const csv = [header.join(","), ...rows].join("\n");
+    const csv = ["url", ...visible.map((k) => k.url)].join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
