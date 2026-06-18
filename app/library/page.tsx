@@ -140,6 +140,21 @@ export default function LibraryPage() {
     }
   }
 
+  function exportLinks() {
+    if (visible.length === 0) return;
+    const text = visible.map((k) => k.url).join("\n");
+    const blob = new Blob([text], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download =
+      filter === "all"
+        ? "design-book-links.txt"
+        : `design-book-links-${filter.toLowerCase()}.txt`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  }
+
   function handleCardClick(keeper: Keeper) {
     if (selectMode) {
       toggleSelected(keeper.id);
@@ -176,6 +191,14 @@ export default function LibraryPage() {
               }`}
             >
               {selectMode ? "Done" : "Select"}
+            </button>
+            <button
+              type="button"
+              onClick={exportLinks}
+              disabled={visible.length === 0}
+              className="rounded-full border border-zinc-700 px-4 py-1.5 text-sm font-medium text-zinc-200 transition hover:border-zinc-500 disabled:opacity-40"
+            >
+              Export links
             </button>
             <button
               type="button"
